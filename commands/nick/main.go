@@ -1,11 +1,15 @@
 package nick
 
 import (
-	s "simple-irc-server/server"
+	c "simple-irc-server/command"
 )
 
-var Command = &s.Command{
+type Params struct {
+	nickname string
+}
+
+var Command = &c.Command[Params]{
 	Name:         "NICK",
-	ParamsParser: paramsParser,
-	Handler:      handler,
+	ParamsParser: ParamsParser,
+	Handler:      Handler,
 }

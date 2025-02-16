@@ -2,16 +2,13 @@ package nick
 
 import (
 	"log"
-	s "simple-irc-server/server"
+	c "simple-irc-server/command"
 )
 
-func handler(ctx *s.Context) error {
-	nickname, err := ctx.Param("nickname")
+func Handler(ctx *c.Context[Params]) error {
+	nickname := ctx.Params.nickname
 
-	if err != nil {
-		log.Printf("invalid nickname: %v", err)
-	}
-
+	// WIP
 	log.Printf("NICK: %s\n", nickname)
 
 	return nil

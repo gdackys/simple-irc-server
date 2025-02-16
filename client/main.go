@@ -6,7 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
-	message3 "simple-irc-server/message"
+	m "simple-irc-server/message"
 	"strings"
 )
 
@@ -33,7 +33,7 @@ func (c *Client) Disconnect() {
 	logger.Printf("Disconnected from %s\n", c.conn.RemoteAddr())
 }
 
-func (c *Client) ReceiveMessage() (*message3.Message, error) {
+func (c *Client) ReceiveMessage() (*m.Message, error) {
 	rawMessage, err := c.reader.ReadString('\n')
 
 	if err != nil {
@@ -45,8 +45,8 @@ func (c *Client) ReceiveMessage() (*message3.Message, error) {
 	return c.parseRawMessage(rawMessage), nil
 }
 
-func (c *Client) parseRawMessage(msg string) *message3.Message {
-	message, err := message3.Parse(msg)
+func (c *Client) parseRawMessage(msg string) *m.Message {
+	message, err := m.Parse(msg)
 
 	if err != nil {
 		logger.Printf("Error parsing message: %v\n", err)

@@ -15,14 +15,21 @@ type Server struct {
 	commands Commands
 }
 
+type Commands = map[string]Command
+
+type Command interface {
+	GetName() string
+	Execute(*m.Message) error
+}
+
 func NewServer() *Server {
 	return &Server{
 		commands: make(Commands),
 	}
 }
 
-func (s *Server) RegisterCommand(cmd *Command) {
-	s.commands[cmd.Name] = cmd
+func (s *Server) RegisterCommand(cmd Command) {
+	s.commands[cmd.GetName()] = cmd
 }
 
 func (s *Server) Start() error {
@@ -73,8 +80,6 @@ func (s *Server) handleClient(client *c.Client) {
 			break
 		}
 
-		logger.Printf("Received message: %v\n", message)
-
 		if err := s.handleMessage(message); err != nil {
 			logger.Printf("Error handling message: %v\n", err)
 		}
@@ -86,19 +91,21 @@ func (s *Server) handleMessage(message *m.Message) error {
 		return fmt.Errorf("invalid message: %v", message)
 	}
 
+	logger.Printf("Received message: %v\n", message)
+
 	return s.handleCommand(message)
 }
 
 func (s *Server) handleCommand(message *m.Message) error {
-	commandName := message.Command()
-	serverCommand, exists := s.commands[commandName]
+	name := message.Command()
+	command, exists := s.commands[name]
 
 	if !exists {
-		return fmt.Errorf("unsupported command: %v", commandName)
+		return fmt.Errorf("unsupported command: %v", name)
 	}
 
-	if err := serverCommand.execute(message); err != nil {
-		return fmt.Errorf("error executing %v: %v", commandName, err)
+	if err := command.Execute(message); err != nil {
+		return fmt.Errorf("error executing %v: %v", name, err)
 	}
 
 	return nil
