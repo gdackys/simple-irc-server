@@ -2,7 +2,6 @@ package client
 
 import (
 	"bufio"
-	"fmt"
 	"log"
 	"net"
 	"os"
@@ -37,21 +36,10 @@ func (c *Client) ReceiveMessage() (*m.Message, error) {
 	rawMessage, err := c.reader.ReadString('\n')
 
 	if err != nil {
-		return nil, fmt.Errorf("error receiving message: %v", err)
+		return nil, err
 	}
 
-	logger.Printf("Raw message: %s\n", strings.TrimSpace(rawMessage))
+	logger.Printf("Incoming message: %s\n", strings.TrimSpace(rawMessage))
 
-	return c.parseRawMessage(rawMessage), nil
-}
-
-func (c *Client) parseRawMessage(msg string) *m.Message {
-	message, err := m.Parse(msg)
-
-	if err != nil {
-		logger.Printf("Error parsing message: %v\n", err)
-		return nil
-	}
-
-	return message
+	return m.Parse(rawMessage)
 }

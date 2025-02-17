@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"os"
@@ -19,7 +18,13 @@ type Commands = map[string]Command
 
 type Command interface {
 	GetName() string
-	Execute(*m.Message) error
+	Execute(ctx *Context)
+}
+
+type Context struct {
+	Message *m.Message
+	Client  *c.Client
+	Server  *Server
 }
 
 func NewServer() *Server {
@@ -38,7 +43,7 @@ func (s *Server) Start() error {
 	defer s.stop(listener)
 
 	if err != nil {
-		return fmt.Errorf("error starting: %v", err)
+		return err
 	}
 
 	logger.Printf("Listening on port 6667\n")
@@ -59,16 +64,6 @@ func (s *Server) Start() error {
 	}
 }
 
-func (s *Server) stop(listener net.Listener) {
-	err := listener.Close()
-
-	if err != nil {
-		logger.Printf("Error stopping: %v\n", err)
-	}
-
-	logger.Printf("Stopped\n")
-}
-
 func (s *Server) handleClient(client *c.Client) {
 	defer client.Disconnect()
 
@@ -80,33 +75,39 @@ func (s *Server) handleClient(client *c.Client) {
 			break
 		}
 
-		if err := s.handleMessage(message); err != nil {
-			logger.Printf("Error handling message: %v\n", err)
-		}
+		s.handleMessage(message, client)
 	}
 }
 
-func (s *Server) handleMessage(message *m.Message) error {
-	if message == nil {
-		return fmt.Errorf("invalid message: %v", message)
+func (s *Server) handleMessage(msg *m.Message, client *c.Client) {
+	if msg == nil {
+		logger.Printf("Empty message: %v\n", msg)
+		return
 	}
 
-	logger.Printf("Received message: %v\n", message)
+	logger.Printf("Received message: %v\n", msg)
 
-	return s.handleCommand(message)
+	s.handleCommand(msg, client)
 }
 
-func (s *Server) handleCommand(message *m.Message) error {
-	name := message.Command()
+func (s *Server) handleCommand(msg *m.Message, client *c.Client) {
+	name := msg.Command()
 	command, exists := s.commands[name]
 
 	if !exists {
-		return fmt.Errorf("unsupported command: %v", name)
+		logger.Printf("Unsupported command: %v\n", name)
+		return
 	}
 
-	if err := command.Execute(message); err != nil {
-		return fmt.Errorf("error executing %v: %v", name, err)
+	context := &Context{msg, client, s}
+
+	command.Execute(context)
+}
+
+func (s *Server) stop(listener net.Listener) {
+	if err := listener.Close(); err != nil {
+		logger.Printf("Error stopping: %v\n", err)
 	}
 
-	return nil
+	logger.Printf("Stopped\n")
 }
