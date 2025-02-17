@@ -1,44 +1,36 @@
 package server
 
 import (
+	"fmt"
 	"log"
 	"net"
-	"os"
 	c "simple-irc-server/client"
-	m "simple-irc-server/message"
 )
 
-var logger = log.New(os.Stdout, "SERVER ", log.LstdFlags|log.Lmicroseconds|log.Lmsgprefix)
-
 type Server struct {
-	commands Commands
+	port      int
+	nicknames *Nicknames
+	usernames *Usernames
 }
 
-type Commands = map[string]Command
-
-type Command interface {
-	GetName() string
-	Execute(ctx *Context)
-}
-
-type Context struct {
-	Message *m.Message
-	Client  *c.Client
-	Server  *Server
-}
-
-func NewServer() *Server {
+func NewServer(port int) *Server {
 	return &Server{
-		commands: make(Commands),
+		port:      port,
+		nicknames: NewNicknames(),
+		usernames: NewUsernames(),
 	}
 }
 
-func (s *Server) RegisterCommand(cmd Command) {
-	s.commands[cmd.GetName()] = cmd
+func (s *Server) stop(listener net.Listener) {
+	if err := listener.Close(); err != nil {
+		log.Printf("! Error stopping: %v\n", err)
+	}
+
+	log.Printf("~ Stopped\n")
 }
 
 func (s *Server) Start() error {
-	listener, err := net.Listen("tcp", ":6667")
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))
 
 	defer s.stop(listener)
 
@@ -46,68 +38,40 @@ func (s *Server) Start() error {
 		return err
 	}
 
-	logger.Printf("Listening on port 6667\n")
+	log.Printf("~ Listening on port %d\n", s.port)
 
 	for {
 		conn, err := listener.Accept()
 
 		if err != nil {
-			logger.Printf("Error accepting connection: %v\n", err)
+			log.Printf("! Error accepting connection: %v\n", err)
 			continue
 		}
 
-		logger.Printf("Accepted new connection: %v\n", conn.RemoteAddr())
+		log.Printf("~ Accepted new connection: %v\n", conn.RemoteAddr())
 
-		client := c.NewClient(conn)
+		client := c.NewClient(conn, s)
 
-		go s.handleClient(client)
+		go client.HandleConnection()
 	}
 }
 
-func (s *Server) handleClient(client *c.Client) {
-	defer client.Disconnect()
-
-	for {
-		message, err := client.ReceiveMessage()
-
-		if err != nil {
-			logger.Printf("Error receiving message: %v\n", err)
-			break
-		}
-
-		s.handleMessage(message, client)
-	}
+func (s *Server) InsertNickname(nick string) error {
+	return s.nicknames.Insert(nick)
 }
 
-func (s *Server) handleMessage(msg *m.Message, client *c.Client) {
-	if msg == nil {
-		logger.Printf("Empty message: %v\n", msg)
-		return
-	}
-
-	logger.Printf("Received message: %v\n", msg)
-
-	s.handleCommand(msg, client)
+func (s *Server) UpdateNickname(nick, newNick string) error {
+	return s.nicknames.Rename(nick, newNick)
 }
 
-func (s *Server) handleCommand(msg *m.Message, client *c.Client) {
-	name := msg.Command()
-	command, exists := s.commands[name]
-
-	if !exists {
-		logger.Printf("Unsupported command: %v\n", name)
-		return
-	}
-
-	context := &Context{msg, client, s}
-
-	command.Execute(context)
+func (s *Server) RemoveNickname(nick string) error {
+	return s.nicknames.Remove(nick)
 }
 
-func (s *Server) stop(listener net.Listener) {
-	if err := listener.Close(); err != nil {
-		logger.Printf("Error stopping: %v\n", err)
-	}
+func (s *Server) InsertUsername(name string) error {
+	return s.usernames.Insert(name)
+}
 
-	logger.Printf("Stopped\n")
+func (s *Server) RemoveUsername(name string) error {
+	return s.usernames.Remove(name)
 }

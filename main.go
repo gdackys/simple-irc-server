@@ -2,14 +2,11 @@ package main
 
 import (
 	"log"
-	"simple-irc-server/command"
 	s "simple-irc-server/server"
 )
 
 func main() {
-	server := s.NewServer()
-
-	server.RegisterCommand(command.Nick())
+	server := s.NewServer(6667)
 
 	if err := server.Start(); err != nil {
 		log.Fatal(err)
