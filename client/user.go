@@ -5,7 +5,7 @@ import (
 )
 
 func (c *Client) handleUser(params string) {
-	pattern := regexp.MustCompile(`^(\S+)\s+(\d+)\s+(\S+)\s+:(.+)$`)
+	pattern := regexp.MustCompile(`^([^\x00\r\n@ ]+)\s+(\d+)\s+(\S+)\s+:(.+)$`)
 	matches := pattern.FindStringSubmatch(params)
 
 	if matches == nil {
