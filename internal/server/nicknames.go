@@ -16,12 +16,12 @@ func NewNicknames() *Nicknames {
 	}
 }
 
-func (nicks *Nicknames) Insert(nickname string) error {
+func (nicks *Nicknames) add(nickname string) error {
 	nicks.mtx.Lock()
 	defer nicks.mtx.Unlock()
 
 	if _, exists := nicks.list[nickname]; exists {
-		return fmt.Errorf("nickname exists: %v", nickname)
+		return fmt.Errorf("nickname already exists: %v", nickname)
 	}
 
 	nicks.list[nickname] = true
@@ -29,12 +29,12 @@ func (nicks *Nicknames) Insert(nickname string) error {
 	return nil
 }
 
-func (nicks *Nicknames) Rename(nickname, newNick string) error {
+func (nicks *Nicknames) rename(nickname, newNick string) error {
 	nicks.mtx.Lock()
 	defer nicks.mtx.Unlock()
 
 	if _, exists := nicks.list[newNick]; exists {
-		return fmt.Errorf("nickname exists: %v", newNick)
+		return fmt.Errorf("nickname already exists: %v", newNick)
 	}
 
 	delete(nicks.list, nickname)
@@ -43,7 +43,7 @@ func (nicks *Nicknames) Rename(nickname, newNick string) error {
 	return nil
 }
 
-func (nicks *Nicknames) Remove(nickname string) error {
+func (nicks *Nicknames) remove(nickname string) error {
 	nicks.mtx.Lock()
 	defer nicks.mtx.Unlock()
 

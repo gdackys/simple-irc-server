@@ -16,7 +16,7 @@ func NewUsernames() *Usernames {
 	}
 }
 
-func (names *Usernames) Insert(username string) error {
+func (names *Usernames) add(username string) error {
 	names.mtx.Lock()
 	defer names.mtx.Unlock()
 
@@ -29,7 +29,7 @@ func (names *Usernames) Insert(username string) error {
 	return nil
 }
 
-func (names *Usernames) Remove(username string) error {
+func (names *Usernames) remove(username string) error {
 	names.mtx.Lock()
 	defer names.mtx.Unlock()
 

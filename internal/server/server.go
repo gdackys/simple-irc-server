@@ -4,20 +4,21 @@ import (
 	"fmt"
 	"log"
 	"net"
-	c "simple-irc-server/client"
 )
 
 type Server struct {
 	port      int
 	nicknames *Nicknames
 	usernames *Usernames
+	chatrooms *Chatrooms
 }
 
 func NewServer(port int) *Server {
 	return &Server{
-		port:      port,
-		nicknames: NewNicknames(),
-		usernames: NewUsernames(),
+		port,
+		NewNicknames(),
+		NewUsernames(),
+		NewChatrooms(),
 	}
 }
 
@@ -50,28 +51,36 @@ func (s *Server) Start() error {
 
 		log.Printf("~ Accepted new connection: %v\n", conn.RemoteAddr())
 
-		client := c.NewClient(conn, s)
+		client := NewClient(conn, s)
 
-		go client.HandleConnection()
+		go client.handleConnection()
 	}
 }
 
-func (s *Server) InsertNickname(nick string) error {
-	return s.nicknames.Insert(nick)
+func (s *Server) addNickname(nick string) error {
+	return s.nicknames.add(nick)
 }
 
-func (s *Server) UpdateNickname(nick, newNick string) error {
-	return s.nicknames.Rename(nick, newNick)
+func (s *Server) updateNickname(nick, newNick string) error {
+	return s.nicknames.rename(nick, newNick)
 }
 
-func (s *Server) RemoveNickname(nick string) error {
-	return s.nicknames.Remove(nick)
+func (s *Server) removeNickname(nick string) error {
+	return s.nicknames.remove(nick)
 }
 
-func (s *Server) InsertUsername(name string) error {
-	return s.usernames.Insert(name)
+func (s *Server) addUsername(name string) error {
+	return s.usernames.add(name)
 }
 
-func (s *Server) RemoveUsername(name string) error {
-	return s.usernames.Remove(name)
+func (s *Server) removeUsername(name string) error {
+	return s.usernames.remove(name)
+}
+
+func (s *Server) getChatroom(name string) (*Chatroom, error) {
+	if s.chatrooms.contain(name) {
+		return s.chatrooms.get(name)
+	} else {
+		return s.chatrooms.create(name)
+	}
 }
