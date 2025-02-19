@@ -6,17 +6,17 @@ import (
 )
 
 type Nicknames struct {
-	list map[string]bool
+	list map[string]*Client
 	mtx  sync.RWMutex
 }
 
 func NewNicknames() *Nicknames {
 	return &Nicknames{
-		list: make(map[string]bool),
+		list: make(map[string]*Client),
 	}
 }
 
-func (nicks *Nicknames) add(nickname string) error {
+func (nicks *Nicknames) add(nickname string, client *Client) error {
 	nicks.mtx.Lock()
 	defer nicks.mtx.Unlock()
 
@@ -24,9 +24,22 @@ func (nicks *Nicknames) add(nickname string) error {
 		return fmt.Errorf("nickname already exists: %v", nickname)
 	}
 
-	nicks.list[nickname] = true
+	nicks.list[nickname] = client
 
 	return nil
+}
+
+func (nicks *Nicknames) get(nickname string) (*Client, error) {
+	nicks.mtx.RLock()
+	defer nicks.mtx.RUnlock()
+
+	client, exists := nicks.list[nickname]
+
+	if !exists {
+		return nil, fmt.Errorf("nickname does not exist: %v", nickname)
+	}
+
+	return client, nil
 }
 
 func (nicks *Nicknames) rename(nickname, newNick string) error {
@@ -37,8 +50,11 @@ func (nicks *Nicknames) rename(nickname, newNick string) error {
 		return fmt.Errorf("nickname already exists: %v", newNick)
 	}
 
+	client := nicks.list[nickname]
+
 	delete(nicks.list, nickname)
-	nicks.list[newNick] = true
+
+	nicks.list[newNick] = client
 
 	return nil
 }

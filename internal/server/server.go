@@ -57,8 +57,12 @@ func (s *Server) Start() error {
 	}
 }
 
-func (s *Server) addNickname(nick string) error {
-	return s.nicknames.add(nick)
+func (s *Server) getClientByNickname(nick string) (*Client, error) {
+	return s.nicknames.get(nick)
+}
+
+func (s *Server) addNickname(nick string, client *Client) error {
+	return s.nicknames.add(nick, client)
 }
 
 func (s *Server) updateNickname(nick, newNick string) error {
@@ -69,8 +73,8 @@ func (s *Server) removeNickname(nick string) error {
 	return s.nicknames.remove(nick)
 }
 
-func (s *Server) addUsername(name string) error {
-	return s.usernames.add(name)
+func (s *Server) addUsername(name string, client *Client) error {
+	return s.usernames.add(name, client)
 }
 
 func (s *Server) removeUsername(name string) error {
@@ -78,7 +82,7 @@ func (s *Server) removeUsername(name string) error {
 }
 
 func (s *Server) getChatroom(name string) (*Chatroom, error) {
-	if s.chatrooms.contain(name) {
+	if s.chatrooms.include(name) {
 		return s.chatrooms.get(name)
 	} else {
 		return s.chatrooms.create(name)

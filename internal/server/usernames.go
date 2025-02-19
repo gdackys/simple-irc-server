@@ -6,17 +6,17 @@ import (
 )
 
 type Usernames struct {
-	list map[string]bool
+	list map[string]*Client
 	mtx  sync.RWMutex
 }
 
 func NewUsernames() *Usernames {
 	return &Usernames{
-		list: make(map[string]bool),
+		list: make(map[string]*Client),
 	}
 }
 
-func (names *Usernames) add(username string) error {
+func (names *Usernames) add(username string, client *Client) error {
 	names.mtx.Lock()
 	defer names.mtx.Unlock()
 
@@ -24,7 +24,7 @@ func (names *Usernames) add(username string) error {
 		return fmt.Errorf("username exists: %v", username)
 	}
 
-	names.list[username] = true
+	names.list[username] = client
 
 	return nil
 }

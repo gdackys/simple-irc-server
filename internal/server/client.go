@@ -45,8 +45,19 @@ func (c *Client) disconnect() {
 
 	c.unsetNickname()
 	c.unsetUser()
+	c.leaveChatrooms()
 
 	log.Printf("~ Disconnected from %s\n", c.conn.RemoteAddr())
+}
+
+func (c *Client) leaveChatrooms() {
+	for _, chatroom := range c.chatrooms {
+		err := chatroom.removeClient(c)
+
+		if err != nil {
+			log.Printf("! Error leaving chatroom: %v\n", err)
+		}
+	}
 }
 
 func (c *Client) receiveMessage() (*Message, error) {
@@ -56,7 +67,7 @@ func (c *Client) receiveMessage() (*Message, error) {
 		return nil, err
 	}
 
-	log.Printf("< %s\n", strings.TrimSpace(rawMessage))
+	log.Printf("< :%s %s\n", c.id(), strings.TrimSpace(rawMessage))
 
 	return NewMessage(rawMessage)
 }
@@ -96,6 +107,8 @@ func (c *Client) handleCommand(message *Message) {
 		c.handleUser(params)
 	case "JOIN":
 		c.handleJoin(params)
+	case "PRIVMSG":
+		c.handlePrivmsg(params)
 	default:
 		c.send(fmt.Sprintf(":irc.local 421 %s :Unknown command", command))
 	}
@@ -104,6 +117,25 @@ func (c *Client) handleCommand(message *Message) {
 		c.register()
 	}
 }
+
+/* REGISTRATION */
+func (c *Client) shouldRegister() bool {
+	return c.registered == false && c.hasUsername() && c.hasNickname()
+}
+
+func (c *Client) register() {
+	c.sendWelcome()
+	c.registered = true
+}
+
+func (c *Client) sendWelcome() {
+	c.send(fmt.Sprintf(":irc.local 001 %s :Welcome to the Internet Relay Network %s", c.nickname, c.id()))
+	c.send(fmt.Sprintf(":irc.local 002 %s :Your host is irc.local, running version 1.00", c.nickname))
+	c.send(fmt.Sprintf(":irc.local 003 %s :This server was created Feb 17 2025", c.nickname))
+	c.send(fmt.Sprintf(":irc.local 004 %s irc.local 1.0 iwso itkol", c.nickname))
+}
+
+/* NICK */
 
 func (c *Client) handleNickname(params string) {
 	pattern := regexp.MustCompile(`^[a-zA-Z\[\]\\` + "`" + `_^{|}][a-zA-Z0-9\[\]\\` + "`" + `_^{|}-]{0,8}$`)
@@ -140,13 +172,13 @@ func (c *Client) changeNickname(nick string) {
 	if err := c.server.updateNickname(c.nickname, nick); err != nil {
 		c.send(fmt.Sprintf(":irc.local 433 %s :Nickname is already in use", nick))
 	} else {
-		c.send(fmt.Sprintf(":%s NICK %s", c.fullIdentifier(), nick))
+		c.send(fmt.Sprintf(":%s NICK %s", c.id(), nick))
 		c.nickname = nick
 	}
 }
 
 func (c *Client) setNickname(nick string) {
-	if err := c.server.addNickname(nick); err != nil {
+	if err := c.server.addNickname(nick, c); err != nil {
 		c.send(":irc.local 433 * :Nickname is already in use")
 	} else {
 		c.nickname = nick
@@ -158,6 +190,8 @@ func (c *Client) unsetNickname() {
 		c.nickname = ""
 	}
 }
+
+/* USER */
 
 func (c *Client) handleUser(params string) {
 	pattern := regexp.MustCompile(`^([^\x00\r\n@ ]+)\s+(\d+)\s+(\S+)\s+:(.+)$`)
@@ -184,7 +218,7 @@ func (c *Client) hasUsername() bool {
 }
 
 func (c *Client) setUser(username, mode, realname string) {
-	if err := c.server.addUsername(username); err != nil {
+	if err := c.server.addUsername(username, c); err != nil {
 		c.send(":irc.local 462 :Unauthorized command (already registered)")
 	} else {
 		c.username = username
@@ -200,6 +234,8 @@ func (c *Client) unsetUser() {
 		c.realname = ""
 	}
 }
+
+/* JOIN */
 
 func (c *Client) handleJoin(params string) {
 	if !c.registered {
@@ -230,37 +266,84 @@ func (c *Client) joinChatroom(name string) {
 		return
 	}
 
+	if err := chatroom.addClient(c); err != nil {
+		fmt.Printf("! Unable to join chatroom: %s\n", err)
+		return
+	}
+
 	c.addChatroom(chatroom)
-	chatroom.addClient(c)
 
 	c.send(fmt.Sprintf(":irc.local 331 %s %s :No topic is set", c.nickname, name))
-	c.send(fmt.Sprintf(":irc.local 353 %s = %s :%s", c.nickname, name, strings.Join(chatroom.nicknames(), " ")))
+	c.send(fmt.Sprintf(":irc.local 353 %s = %s :%s", c.nickname, name, chatroom.nicknames()))
 	c.send(fmt.Sprintf(":irc.local 366 %s %s :End of NAMES list", c.nickname, name))
 
-	chatroom.broadcast(fmt.Sprintf(":%s JOIN %s", c.fullIdentifier(), name))
+	chatroom.sendToAll(fmt.Sprintf(":%s JOIN %s", c.id(), name))
 }
 
 func (c *Client) addChatroom(room *Chatroom) {
 	c.chatrooms[room.name] = room
 }
 
-func (c *Client) shouldRegister() bool {
-	return c.registered == false && c.hasUsername() && c.hasNickname()
+/* PRIVMSG */
+
+func (c *Client) handlePrivmsg(params string) {
+	if !c.registered {
+		c.send(fmt.Sprintf(":irc.local 451 %s :You have not registered", c.nickname))
+		return
+	}
+
+	pattern := regexp.MustCompile(`^([#\w][^\s,]+)\s+:(.+)$`)
+	matches := pattern.FindStringSubmatch(params)
+
+	if matches == nil {
+		c.send(fmt.Sprintf(":irc.local 411 %s :No recipient given (PRIVMSG)", c.nickname))
+		return
+	}
+
+	target, message := matches[1], matches[2]
+
+	if target == "" {
+		c.send(fmt.Sprintf(":irc.local 411 %s :No recipient given (PRIVMSG)", c.nickname))
+		return
+	}
+
+	if message == "" {
+		c.send(fmt.Sprintf(":irc.local 412 %s :No text to send", c.nickname))
+		return
+	}
+
+	if strings.HasPrefix(target, "#") {
+		c.sendToChatroom(target, message)
+	} else {
+		c.sendToClient(target, message)
+	}
 }
 
-func (c *Client) register() {
-	c.sendWelcome()
-	c.registered = true
+func (c *Client) sendToChatroom(name, message string) {
+	chatroom, exists := c.chatrooms[name]
+
+	if !exists {
+		c.send(fmt.Sprintf(":irc.local 442 %s :You're not on that channel", name))
+		return
+	}
+
+	chatroom.broadcast(c, fmt.Sprintf(":%s PRIVMSG %s :%s", c.id(), name, message))
 }
 
-func (c *Client) sendWelcome() {
-	c.send(fmt.Sprintf(":irc.local 001 %s :Welcome to the Internet Relay Network %s", c.nickname, c.fullIdentifier()))
-	c.send(fmt.Sprintf(":irc.local 002 %s :Your host is irc.local, running version 1.00", c.nickname))
-	c.send(fmt.Sprintf(":irc.local 003 %s :This server was created Feb 17 2025", c.nickname))
-	c.send(fmt.Sprintf(":irc.local 004 %s irc.local 1.0 iwso itkol", c.nickname))
+func (c *Client) sendToClient(nickname, message string) {
+	client, err := c.server.getClientByNickname(nickname)
+
+	if err != nil {
+		c.send(fmt.Sprintf(":irc.local 401 %s :No such nick/channel", nickname))
+		return
+	}
+
+	client.send(fmt.Sprintf(":%s PRIVMSG %s :%s", c.id(), client.nickname, message))
 }
 
-func (c *Client) fullIdentifier() string {
+/* MISC */
+
+func (c *Client) id() string {
 	return fmt.Sprintf("%s!%s@%s", c.nickname, c.username, c.address)
 }
 
