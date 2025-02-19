@@ -2,7 +2,7 @@ package main
 
 import (
 	"log"
-	s "simple-irc-server/internal/server"
+	s "simple-irc-server/server"
 )
 
 func main() {
