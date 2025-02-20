@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"strings"
 	"sync"
 )
@@ -19,34 +18,18 @@ func NewChatroom(name string) *Chatroom {
 	}
 }
 
-func (cr *Chatroom) addClient(client *Client) error {
+func (cr *Chatroom) addClient(client *Client) {
 	cr.mtx.Lock()
 	defer cr.mtx.Unlock()
-
-	_, exists := cr.clients[client]
-
-	if exists {
-		return fmt.Errorf("client already exist: %s", client)
-	}
 
 	cr.clients[client] = true
-
-	return nil
 }
 
-func (cr *Chatroom) removeClient(client *Client) error {
+func (cr *Chatroom) removeClient(client *Client) {
 	cr.mtx.Lock()
 	defer cr.mtx.Unlock()
 
-	_, exists := cr.clients[client]
-
-	if !exists {
-		return fmt.Errorf("client does not exist: %s", client)
-	}
-
 	delete(cr.clients, client)
-
-	return nil
 }
 
 func (cr *Chatroom) sendToAll(message string) {

@@ -242,10 +242,10 @@ func (c *Client) handleJoin(params string) {
 		return
 	}
 
-	chatrooms := strings.Split(matches[1], ",")
+	roomNames := strings.Split(matches[1], ",")
 
-	for _, chatroom := range chatrooms {
-		c.joinChatroom(chatroom)
+	for _, name := range roomNames {
+		c.joinChatroom(name)
 	}
 }
 
@@ -257,11 +257,7 @@ func (c *Client) joinChatroom(name string) {
 		return
 	}
 
-	if err := chatroom.addClient(c); err != nil {
-		fmt.Printf("! Unable to join chatroom: %s\n", err)
-		return
-	}
-
+	chatroom.addClient(c)
 	c.addChatroom(chatroom)
 
 	chatroom.sendToAll(fmt.Sprintf(":%s JOIN %s", c, name))
@@ -344,15 +340,15 @@ func (c *Client) handlePart(params string) {
 		return
 	}
 
-	chatrooms := strings.Split(matches[1], ",")
+	roomNames := strings.Split(matches[1], ",")
 	partMessage := ""
 
 	if len(matches) > 2 && matches[2] != "" {
 		partMessage = matches[2]
 	}
 
-	for _, chatroom := range chatrooms {
-		c.partChatroom(chatroom, partMessage)
+	for _, name := range roomNames {
+		c.partChatroom(name, partMessage)
 	}
 }
 
@@ -364,13 +360,13 @@ func (c *Client) partChatroom(name, partMessage string) {
 		return
 	}
 
-	message := fmt.Sprintf(":%s PART %s", c, chatroom.name)
+	payload := fmt.Sprintf(":%s PART %s", c, chatroom.name)
 
 	if partMessage != "" {
-		message = fmt.Sprintf("%s :%s", message, partMessage)
+		payload = fmt.Sprintf("%s :%s", payload, partMessage)
 	}
 
-	chatroom.sendToAll(message)
+	chatroom.sendToAll(payload)
 
 	c.exitChatroom(chatroom)
 }
@@ -402,11 +398,7 @@ func (c *Client) exitChatrooms() {
 }
 
 func (c *Client) exitChatroom(chatroom *Chatroom) {
-	if err := chatroom.removeClient(c); err != nil {
-		log.Printf("! Error exiting chatroom %s: %v\n", chatroom.name, err)
-		return
-	}
-
+	chatroom.removeClient(c)
 	c.removeChatroom(chatroom)
 }
 
