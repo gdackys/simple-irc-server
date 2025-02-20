@@ -26,7 +26,7 @@ func (cr *Chatroom) addClient(client *Client) error {
 	_, exists := cr.clients[client]
 
 	if exists {
-		return fmt.Errorf("client already exist: %s", client.id())
+		return fmt.Errorf("client already exist: %s", client)
 	}
 
 	cr.clients[client] = true
@@ -41,7 +41,7 @@ func (cr *Chatroom) removeClient(client *Client) error {
 	_, exists := cr.clients[client]
 
 	if !exists {
-		return fmt.Errorf("client does not exist: %s", client.id())
+		return fmt.Errorf("client does not exist: %s", client)
 	}
 
 	delete(cr.clients, client)
