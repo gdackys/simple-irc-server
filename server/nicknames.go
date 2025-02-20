@@ -16,6 +16,22 @@ func NewNicknames() *Nicknames {
 	}
 }
 
+func (nicks *Nicknames) GetClientByNickname(nick string) (*Client, error) {
+	return nicks.get(nick)
+}
+
+func (nicks *Nicknames) AddNickname(nick string, client *Client) error {
+	return nicks.add(nick, client)
+}
+
+func (nicks *Nicknames) UpdateNickname(nick, newNick string) error {
+	return nicks.rename(nick, newNick)
+}
+
+func (nicks *Nicknames) RemoveNickname(nick string) error {
+	return nicks.remove(nick)
+}
+
 func (nicks *Nicknames) add(nickname string, client *Client) error {
 	nicks.mtx.Lock()
 	defer nicks.mtx.Unlock()

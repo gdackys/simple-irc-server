@@ -16,6 +16,14 @@ func NewUsernames() *Usernames {
 	}
 }
 
+func (names *Usernames) AddUsername(name string, client *Client) error {
+	return names.add(name, client)
+}
+
+func (names *Usernames) RemoveUsername(name string) error {
+	return names.remove(name)
+}
+
 func (names *Usernames) add(username string, client *Client) error {
 	names.mtx.Lock()
 	defer names.mtx.Unlock()

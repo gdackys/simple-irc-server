@@ -160,7 +160,7 @@ func (c *Client) changeNickname(nick string) {
 		return
 	}
 
-	if err := c.server.updateNickname(c.nickname, nick); err != nil {
+	if err := c.server.UpdateNickname(c.nickname, nick); err != nil {
 		c.send(fmt.Sprintf(":irc.local 433 %s :Nickname is already in use", nick))
 	} else {
 		c.send(fmt.Sprintf(":%s NICK %s", c, nick))
@@ -169,7 +169,7 @@ func (c *Client) changeNickname(nick string) {
 }
 
 func (c *Client) setNickname(nick string) {
-	if err := c.server.addNickname(nick, c); err != nil {
+	if err := c.server.AddNickname(nick, c); err != nil {
 		c.send(":irc.local 433 * :Nickname is already in use")
 	} else {
 		c.nickname = nick
@@ -177,7 +177,7 @@ func (c *Client) setNickname(nick string) {
 }
 
 func (c *Client) unsetNickname() {
-	if err := c.server.removeNickname(c.nickname); err == nil {
+	if err := c.server.RemoveNickname(c.nickname); err == nil {
 		c.nickname = ""
 	}
 }
@@ -209,7 +209,7 @@ func (c *Client) hasUsername() bool {
 }
 
 func (c *Client) setUser(username, mode, realname string) {
-	if err := c.server.addUsername(username, c); err != nil {
+	if err := c.server.AddUsername(username, c); err != nil {
 		c.send(fmt.Sprintf(":irc.local 462 %s :Unauthorized command (already registered)", c.nickname))
 	} else {
 		c.username = username
@@ -219,7 +219,7 @@ func (c *Client) setUser(username, mode, realname string) {
 }
 
 func (c *Client) unsetUser() {
-	if err := c.server.removeUsername(c.username); err == nil {
+	if err := c.server.RemoveUsername(c.username); err == nil {
 		c.username = ""
 		c.mode = ""
 		c.realname = ""
@@ -250,7 +250,7 @@ func (c *Client) handleJoin(params string) {
 }
 
 func (c *Client) joinChatroom(name string) {
-	chatroom, err := c.server.getChatroom(name)
+	chatroom, err := c.server.GetChatroom(name)
 
 	if err != nil {
 		c.send(fmt.Sprintf(":irc.local 403 %s %s :No such channel", c.nickname, name))
@@ -271,7 +271,7 @@ func (c *Client) joinChatroom(name string) {
 
 func (c *Client) handlePrivmsg(params string) {
 	if !c.registered {
-		c.send(fmt.Sprintf(":irc.local 451 :You have not registered"))
+		c.send(fmt.Sprintf(":irc.local 451 * :You have not registered"))
 		return
 	}
 
@@ -314,7 +314,7 @@ func (c *Client) sendToChatroom(name, message string) {
 }
 
 func (c *Client) sendToClient(nickname, message string) {
-	client, err := c.server.getClientByNickname(nickname)
+	client, err := c.server.GetClientByNickname(nickname)
 
 	if err != nil {
 		c.send(fmt.Sprintf(":irc.local 401 %s %s :No such nick/channel", c.nickname, nickname))

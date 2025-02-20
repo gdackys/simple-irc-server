@@ -16,20 +16,28 @@ func NewChatrooms() *Chatrooms {
 	}
 }
 
-func (rms *Chatrooms) include(name string) bool {
-	rms.mtx.RLock()
-	defer rms.mtx.RUnlock()
+func (rooms *Chatrooms) GetChatroom(name string) (*Chatroom, error) {
+	if rooms.include(name) {
+		return rooms.get(name)
+	} else {
+		return rooms.create(name)
+	}
+}
 
-	_, exists := rms.list[name]
+func (rooms *Chatrooms) include(name string) bool {
+	rooms.mtx.RLock()
+	defer rooms.mtx.RUnlock()
+
+	_, exists := rooms.list[name]
 
 	return exists
 }
 
-func (rms *Chatrooms) get(name string) (*Chatroom, error) {
-	rms.mtx.RLock()
-	defer rms.mtx.RUnlock()
+func (rooms *Chatrooms) get(name string) (*Chatroom, error) {
+	rooms.mtx.RLock()
+	defer rooms.mtx.RUnlock()
 
-	room, exists := rms.list[name]
+	room, exists := rooms.list[name]
 
 	if !exists {
 		return nil, fmt.Errorf("channel does not exist: %s", name)
@@ -38,11 +46,11 @@ func (rms *Chatrooms) get(name string) (*Chatroom, error) {
 	return room, nil
 }
 
-func (rms *Chatrooms) create(name string) (*Chatroom, error) {
-	rms.mtx.Lock()
-	defer rms.mtx.Unlock()
+func (rooms *Chatrooms) create(name string) (*Chatroom, error) {
+	rooms.mtx.Lock()
+	defer rooms.mtx.Unlock()
 
-	_, exists := rms.list[name]
+	_, exists := rooms.list[name]
 
 	if exists {
 		return nil, fmt.Errorf("channel already exists: %s", name)
@@ -50,7 +58,7 @@ func (rms *Chatrooms) create(name string) (*Chatroom, error) {
 
 	room := NewChatroom(name)
 
-	rms.list[name] = room
+	rooms.list[name] = room
 
 	return room, nil
 }

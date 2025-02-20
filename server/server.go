@@ -7,10 +7,10 @@ import (
 )
 
 type Server struct {
-	port      int
-	nicknames *Nicknames
-	usernames *Usernames
-	chatrooms *Chatrooms
+	port int
+	*Nicknames
+	*Usernames
+	*Chatrooms
 }
 
 func NewServer(port int) *Server {
@@ -27,17 +27,17 @@ func (s *Server) stop(listener net.Listener) {
 		log.Printf("! Error stopping: %v\n", err)
 	}
 
-	log.Printf("~ Stopped\n")
+	log.Printf("~ Bye!\n")
 }
 
 func (s *Server) Start() error {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))
 
-	defer s.stop(listener)
-
 	if err != nil {
 		return err
 	}
+
+	defer s.stop(listener)
 
 	log.Printf("~ Listening on port %d\n", s.port)
 
@@ -54,37 +54,5 @@ func (s *Server) Start() error {
 		client := NewClient(conn, s)
 
 		go client.handleConnection()
-	}
-}
-
-func (s *Server) getClientByNickname(nick string) (*Client, error) {
-	return s.nicknames.get(nick)
-}
-
-func (s *Server) addNickname(nick string, client *Client) error {
-	return s.nicknames.add(nick, client)
-}
-
-func (s *Server) updateNickname(nick, newNick string) error {
-	return s.nicknames.rename(nick, newNick)
-}
-
-func (s *Server) removeNickname(nick string) error {
-	return s.nicknames.remove(nick)
-}
-
-func (s *Server) addUsername(name string, client *Client) error {
-	return s.usernames.add(name, client)
-}
-
-func (s *Server) removeUsername(name string) error {
-	return s.usernames.remove(name)
-}
-
-func (s *Server) getChatroom(name string) (*Chatroom, error) {
-	if s.chatrooms.include(name) {
-		return s.chatrooms.get(name)
-	} else {
-		return s.chatrooms.create(name)
 	}
 }
