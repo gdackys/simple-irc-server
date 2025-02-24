@@ -18,41 +18,41 @@ func NewChatroom(name string) *Chatroom {
 	}
 }
 
-func (cr *Chatroom) addClient(client *Client) {
-	cr.mtx.Lock()
-	defer cr.mtx.Unlock()
+func (room *Chatroom) addClient(client *Client) {
+	room.mtx.Lock()
+	defer room.mtx.Unlock()
 
-	cr.clients[client] = true
+	room.clients[client] = true
 }
 
-func (cr *Chatroom) removeClient(client *Client) {
-	cr.mtx.Lock()
-	defer cr.mtx.Unlock()
+func (room *Chatroom) removeClient(client *Client) {
+	room.mtx.Lock()
+	defer room.mtx.Unlock()
 
-	delete(cr.clients, client)
+	delete(room.clients, client)
 }
 
-func (cr *Chatroom) sendToAll(message string) {
-	for client := range cr.clients {
+func (room *Chatroom) sendToAll(message string) {
+	for client := range room.clients {
 		client.send(message)
 	}
 }
 
-func (cr *Chatroom) broadcast(source *Client, message string) {
-	for client := range cr.clients {
+func (room *Chatroom) broadcast(source *Client, message string) {
+	for client := range room.clients {
 		if client != source {
 			client.send(message)
 		}
 	}
 }
 
-func (cr *Chatroom) nicknames() string {
-	cr.mtx.RLock()
-	defer cr.mtx.RUnlock()
+func (room *Chatroom) nicknames() string {
+	room.mtx.RLock()
+	defer room.mtx.RUnlock()
 
-	result := make([]string, 0, len(cr.clients))
+	result := make([]string, 0, len(room.clients))
 
-	for client := range cr.clients {
+	for client := range room.clients {
 		result = append(result, client.nickname)
 	}
 
