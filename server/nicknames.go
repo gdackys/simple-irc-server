@@ -16,6 +16,10 @@ func NewNicknames() *Nicknames {
 	}
 }
 
+func (nicks *Nicknames) GetClients() []*Client {
+	return nicks.getClients()
+}
+
 func (nicks *Nicknames) GetClientByNickname(nick string) (*Client, error) {
 	return nicks.get(nick)
 }
@@ -30,6 +34,19 @@ func (nicks *Nicknames) UpdateNickname(nick, newNick string) error {
 
 func (nicks *Nicknames) RemoveNickname(nick string) error {
 	return nicks.remove(nick)
+}
+
+func (nicks *Nicknames) getClients() []*Client {
+	nicks.mtx.RLock()
+	defer nicks.mtx.RUnlock()
+
+	clients := make([]*Client, len(nicks.list))
+
+	for _, client := range nicks.list {
+		clients = append(clients, client)
+	}
+
+	return clients
 }
 
 func (nicks *Nicknames) add(nickname string, client *Client) error {

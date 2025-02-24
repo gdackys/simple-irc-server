@@ -103,6 +103,8 @@ func (c *Client) handleCommand(message *Message) {
 		c.handlePart(params)
 	case "QUIT":
 		c.handleQuit(params)
+	case "WHO":
+		c.handleWho(params)
 	}
 
 	if c.shouldRegister() {
@@ -394,6 +396,75 @@ func (c *Client) handleQuit(params string) {
 	c.send(fmt.Sprintf("ERROR :Closing Link: %s (%s)", c.address, quitMessage))
 
 	c.disconnect()
+}
+
+/* WHO */
+
+func (c *Client) handleWho(params string) {
+	if !c.registered {
+		c.send(fmt.Sprintf(":irc.local 451 %s :You have not registered", c.nickname))
+		return
+	}
+
+	pattern := regexp.MustCompile(`^([^\s,]+)(?:\s+o)?$`)
+	matches := pattern.FindStringSubmatch(params)
+
+	if matches == nil {
+		c.send(fmt.Sprintf(":irc.local 461 %s WHO :Not enough parameters", c.nickname))
+		return
+	}
+
+	mask := matches[1]
+
+	if strings.HasPrefix(mask, "#") {
+		c.whoChatroom(mask)
+	} else {
+		c.whoMask(mask)
+	}
+}
+
+func (c *Client) whoChatroom(name string) {
+	chatroom, exists := c.chatrooms[name]
+
+	if !exists {
+		c.send(fmt.Sprintf(":irc.local 403 %s %s :No such channel", c.nickname, name))
+		return
+	}
+
+	for client := range chatroom.clients {
+		c.send(fmt.Sprintf(":irc.local 352 %s %s %s", c.nickname, chatroom.name, client.whoResponse()))
+	}
+
+	c.send(fmt.Sprintf(":irc.local 315 %s %s :End of WHO list", c.nickname, name))
+}
+
+func (c *Client) whoMask(mask string) {
+	regexPattern := strings.ReplaceAll(mask, "*", ".*")
+	regexPattern = strings.ReplaceAll(regexPattern, "?", ".")
+	regex, err := regexp.Compile("^" + regexPattern + "$")
+
+	if err != nil {
+		c.send(fmt.Sprintf(":irc.local 315 %s %s :End of WHO list", c.nickname, mask))
+		return
+	}
+
+	clients := c.server.GetClients()
+
+	for _, client := range clients {
+		if client.matchesMask(regex) {
+			c.send(fmt.Sprintf(":irc.local 352 %s %s %s", c.nickname, "*", client.whoResponse()))
+		}
+	}
+
+	c.send(fmt.Sprintf(":irc.local 315 %s %s :End of WHO list", c.nickname, mask))
+}
+
+func (c *Client) matchesMask(regex *regexp.Regexp) bool {
+	return regex.MatchString(c.nickname) || regex.MatchString(c.username) || regex.MatchString(c.address)
+}
+
+func (c *Client) whoResponse() string {
+	return fmt.Sprintf("%s %s irc.local %s H :0 %s", c.username, c.address, c.nickname, c.realname)
 }
 
 /* MISC */
