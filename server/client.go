@@ -167,7 +167,7 @@ func (c *Client) changeNickname(nick string) {
 	if err := c.server.UpdateNickname(c.nickname, nick); err != nil {
 		c.send(fmt.Sprintf(":irc.local 433 %s :Nickname is already in use", nick))
 	} else {
-		c.send(fmt.Sprintf(":%s NICK %s", c, nick))
+		c.announce(fmt.Sprintf(":%s NICK %s", c, nick))
 		c.nickname = nick
 	}
 }
@@ -475,6 +475,14 @@ func (c *Client) id() string {
 
 func (c *Client) String() string {
 	return c.id()
+}
+
+func (c *Client) announce(message string) {
+	c.send(message)
+
+	for _, chatroom := range c.chatrooms {
+		chatroom.broadcast(c, message)
+	}
 }
 
 func (c *Client) send(message string) {
