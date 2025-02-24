@@ -124,10 +124,10 @@ func (c *Client) register() {
 }
 
 func (c *Client) sendWelcome() {
-	c.send(fmt.Sprintf(":irc.local 001 %s :Welcome to the Internet Relay Network %s", c.nickname, c))
-	c.send(fmt.Sprintf(":irc.local 002 %s :Your host is irc.local, running version 1.00", c.nickname))
-	c.send(fmt.Sprintf(":irc.local 003 %s :This server was created Feb 17 2025", c.nickname))
-	c.send(fmt.Sprintf(":irc.local 004 %s irc.local 1.0", c.nickname))
+	c.sendf(":irc.local 001 %s :Welcome to the Internet Relay Network %s", c.nickname, c)
+	c.sendf(":irc.local 002 %s :Your host is irc.local, running version 1.00", c.nickname)
+	c.sendf(":irc.local 003 %s :This server was created Feb 17 2025", c.nickname)
+	c.sendf(":irc.local 004 %s irc.local 1.0", c.nickname)
 }
 
 /* NICK */
@@ -137,7 +137,7 @@ func (c *Client) handleNickname(params string) {
 	matches := pattern.FindStringSubmatch(params)
 
 	if matches == nil {
-		c.send(fmt.Sprint(":irc.local 432 * :Erroneous nickname"))
+		c.send(":irc.local 432 * :Erroneous nickname")
 		return
 	}
 
@@ -165,7 +165,7 @@ func (c *Client) changeNickname(nick string) {
 	}
 
 	if err := c.server.UpdateNickname(c.nickname, nick); err != nil {
-		c.send(fmt.Sprintf(":irc.local 433 %s :Nickname is already in use", nick))
+		c.sendf(":irc.local 433 %s :Nickname is already in use", nick)
 	} else {
 		c.announce(fmt.Sprintf(":%s NICK %s", c, nick))
 		c.nickname = nick
@@ -193,7 +193,7 @@ func (c *Client) handleUser(params string) {
 	matches := pattern.FindStringSubmatch(params)
 
 	if matches == nil {
-		c.send(fmt.Sprintf(":irc.local 461 %s USER :Not enough parameters", c.nickname))
+		c.sendf(":irc.local 461 %s USER :Not enough parameters", c.nickname)
 		return
 	}
 
@@ -202,7 +202,7 @@ func (c *Client) handleUser(params string) {
 	realname := matches[4]
 
 	if c.hasUsername() {
-		c.send(fmt.Sprintf(":irc.local 462 %s :Unauthorized command (already registered)", c.nickname))
+		c.sendf(":irc.local 462 %s :Unauthorized command (already registered)", c.nickname)
 	} else {
 		c.setUser(username, mode, realname)
 	}
@@ -214,7 +214,7 @@ func (c *Client) hasUsername() bool {
 
 func (c *Client) setUser(username, mode, realname string) {
 	if err := c.server.AddUsername(username, c); err != nil {
-		c.send(fmt.Sprintf(":irc.local 462 %s :Unauthorized command (already registered)", c.nickname))
+		c.sendf(":irc.local 462 %s :Unauthorized command (already registered)", c.nickname)
 	} else {
 		c.username = username
 		c.mode = mode
@@ -234,7 +234,7 @@ func (c *Client) unsetUser() {
 
 func (c *Client) handleJoin(params string) {
 	if !c.registered {
-		c.send(fmt.Sprintf(":irc.local 451 %s :You have not registered", c.nickname))
+		c.sendf(":irc.local 451 %s :You have not registered", c.nickname)
 		return
 	}
 
@@ -242,7 +242,7 @@ func (c *Client) handleJoin(params string) {
 	matches := pattern.FindStringSubmatch(params)
 
 	if matches == nil {
-		c.send(fmt.Sprintf(":irc.local 403 %s %s :No such channel", c.nickname, params))
+		c.sendf(":irc.local 403 %s %s :No such channel", c.nickname, params)
 		return
 	}
 
@@ -257,7 +257,7 @@ func (c *Client) joinChatroom(name string) {
 	chatroom, err := c.server.GetChatroom(name)
 
 	if err != nil {
-		c.send(fmt.Sprintf(":irc.local 403 %s %s :No such channel", c.nickname, name))
+		c.sendf(":irc.local 403 %s %s :No such channel", c.nickname, name)
 		return
 	}
 
@@ -266,16 +266,16 @@ func (c *Client) joinChatroom(name string) {
 
 	chatroom.sendToAll(fmt.Sprintf(":%s JOIN %s", c, name))
 
-	c.send(fmt.Sprintf(":irc.local 331 %s %s :No topic is set", c.nickname, name))
-	c.send(fmt.Sprintf(":irc.local 353 %s = %s :%s", c.nickname, name, chatroom.nicknames()))
-	c.send(fmt.Sprintf(":irc.local 366 %s %s :End of NAMES list", c.nickname, name))
+	c.sendf(":irc.local 331 %s %s :No topic is set", c.nickname, name)
+	c.sendf(":irc.local 353 %s = %s :%s", c.nickname, name, chatroom.nicknames())
+	c.sendf(":irc.local 366 %s %s :End of NAMES list", c.nickname, name)
 }
 
 /* PRIVMSG */
 
 func (c *Client) handlePrivmsg(params string) {
 	if !c.registered {
-		c.send(fmt.Sprintf(":irc.local 451 * :You have not registered"))
+		c.sendf(":irc.local 451 * :You have not registered")
 		return
 	}
 
@@ -283,19 +283,19 @@ func (c *Client) handlePrivmsg(params string) {
 	matches := pattern.FindStringSubmatch(params)
 
 	if matches == nil {
-		c.send(fmt.Sprintf(":irc.local 411 %s :No recipient given (PRIVMSG)", c.nickname))
+		c.sendf(":irc.local 411 %s :No recipient given (PRIVMSG)", c.nickname)
 		return
 	}
 
 	target, message := matches[1], matches[2]
 
 	if target == "" {
-		c.send(fmt.Sprintf(":irc.local 411 %s :No recipient given (PRIVMSG)", c.nickname))
+		c.sendf(":irc.local 411 %s :No recipient given (PRIVMSG)", c.nickname)
 		return
 	}
 
 	if message == "" {
-		c.send(fmt.Sprintf(":irc.local 412 %s :No text to send", c.nickname))
+		c.sendf(":irc.local 412 %s :No text to send", c.nickname)
 		return
 	}
 
@@ -310,7 +310,7 @@ func (c *Client) sendToChatroom(name, message string) {
 	chatroom, exists := c.chatrooms[name]
 
 	if !exists {
-		c.send(fmt.Sprintf(":irc.local 404 %s %s :Cannot send to channel", c.nickname, name))
+		c.sendf(":irc.local 404 %s %s :Cannot send to channel", c.nickname, name)
 		return
 	}
 
@@ -321,18 +321,18 @@ func (c *Client) sendToClient(nickname, message string) {
 	client, err := c.server.GetClientByNickname(nickname)
 
 	if err != nil {
-		c.send(fmt.Sprintf(":irc.local 401 %s %s :No such nick/channel", c.nickname, nickname))
+		c.sendf(":irc.local 401 %s %s :No such nick/channel", c.nickname, nickname)
 		return
 	}
 
-	client.send(fmt.Sprintf(":%s PRIVMSG %s :%s", c, client.nickname, message))
+	client.sendf(":%s PRIVMSG %s :%s", c, client.nickname, message)
 }
 
 /* PART */
 
 func (c *Client) handlePart(params string) {
 	if !c.registered {
-		c.send(fmt.Sprintf(":irc.local 451 %s :You have not registered", c.nickname))
+		c.sendf(":irc.local 451 %s :You have not registered", c.nickname)
 		return
 	}
 
@@ -340,7 +340,7 @@ func (c *Client) handlePart(params string) {
 	matches := pattern.FindStringSubmatch(params)
 
 	if matches == nil {
-		c.send(fmt.Sprintf(":irc.local 461 %s PART :Not enough parameters", c.nickname))
+		c.sendf(":irc.local 461 %s PART :Not enough parameters", c.nickname)
 		return
 	}
 
@@ -360,7 +360,7 @@ func (c *Client) partChatroom(name, partNotice string) {
 	chatroom, exists := c.chatrooms[name]
 
 	if !exists {
-		c.send(fmt.Sprintf(":irc.local 442 %s %s :You're not on that channel", c.nickname, name))
+		c.sendf(":irc.local 442 %s %s :You're not on that channel", c.nickname, name)
 		return
 	}
 
@@ -393,7 +393,7 @@ func (c *Client) handleQuit(params string) {
 		chatroom.sendToAll(quitNotice)
 	}
 
-	c.send(fmt.Sprintf("ERROR :Closing Link: %s (%s)", c.address, quitMessage))
+	c.sendf("ERROR :Closing Link: %s (%s)", c.address, quitMessage)
 
 	c.disconnect()
 }
@@ -402,7 +402,7 @@ func (c *Client) handleQuit(params string) {
 
 func (c *Client) handleWho(params string) {
 	if !c.registered {
-		c.send(fmt.Sprintf(":irc.local 451 %s :You have not registered", c.nickname))
+		c.sendf(":irc.local 451 %s :You have not registered", c.nickname)
 		return
 	}
 
@@ -410,7 +410,7 @@ func (c *Client) handleWho(params string) {
 	matches := pattern.FindStringSubmatch(params)
 
 	if matches == nil {
-		c.send(fmt.Sprintf(":irc.local 461 %s WHO :Not enough parameters", c.nickname))
+		c.sendf(":irc.local 461 %s WHO :Not enough parameters", c.nickname)
 		return
 	}
 
@@ -427,15 +427,15 @@ func (c *Client) whoChatroom(name string) {
 	chatroom, exists := c.chatrooms[name]
 
 	if !exists {
-		c.send(fmt.Sprintf(":irc.local 403 %s %s :No such channel", c.nickname, name))
+		c.sendf(":irc.local 403 %s %s :No such channel", c.nickname, name)
 		return
 	}
 
 	for client := range chatroom.clients {
-		c.send(fmt.Sprintf(":irc.local 352 %s %s %s", c.nickname, chatroom.name, client.whoResponse()))
+		c.sendf(":irc.local 352 %s %s %s", c.nickname, chatroom.name, client.whoResponse())
 	}
 
-	c.send(fmt.Sprintf(":irc.local 315 %s %s :End of WHO list", c.nickname, name))
+	c.sendf(":irc.local 315 %s %s :End of WHO list", c.nickname, name)
 }
 
 func (c *Client) whoMask(mask string) {
@@ -444,7 +444,7 @@ func (c *Client) whoMask(mask string) {
 	regex, err := regexp.Compile("^" + regexPattern + "$")
 
 	if err != nil {
-		c.send(fmt.Sprintf(":irc.local 315 %s %s :End of WHO list", c.nickname, mask))
+		c.sendf(":irc.local 315 %s %s :End of WHO list", c.nickname, mask)
 		return
 	}
 
@@ -452,11 +452,11 @@ func (c *Client) whoMask(mask string) {
 
 	for _, client := range clients {
 		if client.matchesMask(regex) {
-			c.send(fmt.Sprintf(":irc.local 352 %s %s %s", c.nickname, "*", client.whoResponse()))
+			c.sendf(":irc.local 352 %s %s %s", c.nickname, "*", client.whoResponse())
 		}
 	}
 
-	c.send(fmt.Sprintf(":irc.local 315 %s %s :End of WHO list", c.nickname, mask))
+	c.sendf(":irc.local 315 %s %s :End of WHO list", c.nickname, mask)
 }
 
 func (c *Client) matchesMask(regex *regexp.Regexp) bool {
@@ -483,6 +483,12 @@ func (c *Client) announce(message string) {
 	for _, chatroom := range c.chatrooms {
 		chatroom.broadcast(c, message)
 	}
+}
+
+func (c *Client) sendf(format string, args ...any) {
+	message := fmt.Sprintf(format, args...)
+
+	c.send(message)
 }
 
 func (c *Client) send(message string) {
