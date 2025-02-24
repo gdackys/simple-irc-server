@@ -101,6 +101,8 @@ func (c *Client) handleCommand(message *Message) {
 		c.handlePrivmsg(params)
 	case "PART":
 		c.handlePart(params)
+	case "QUIT":
+		c.handleQuit(params)
 	}
 
 	if c.shouldRegister() {
@@ -341,18 +343,18 @@ func (c *Client) handlePart(params string) {
 	}
 
 	roomNames := strings.Split(matches[1], ",")
-	partMessage := ""
+	partNotice := ""
 
 	if len(matches) > 2 && matches[2] != "" {
-		partMessage = matches[2]
+		partNotice = matches[2]
 	}
 
 	for _, name := range roomNames {
-		c.partChatroom(name, partMessage)
+		c.partChatroom(name, partNotice)
 	}
 }
 
-func (c *Client) partChatroom(name, partMessage string) {
+func (c *Client) partChatroom(name, partNotice string) {
 	chatroom, exists := c.chatrooms[name]
 
 	if !exists {
@@ -360,15 +362,38 @@ func (c *Client) partChatroom(name, partMessage string) {
 		return
 	}
 
-	payload := fmt.Sprintf(":%s PART %s", c, chatroom.name)
+	quitMessage := fmt.Sprintf(":%s PART %s", c, chatroom.name)
 
-	if partMessage != "" {
-		payload = fmt.Sprintf("%s :%s", payload, partMessage)
+	if partNotice != "" {
+		quitMessage = fmt.Sprintf("%s :%s", quitMessage, partNotice)
 	}
 
-	chatroom.sendToAll(payload)
+	chatroom.sendToAll(quitMessage)
 
 	c.exitChatroom(chatroom)
+}
+
+/* QUIT */
+
+func (c *Client) handleQuit(params string) {
+	quitMessage := "Quit"
+
+	pattern := regexp.MustCompile(`^:(.+)$`)
+	matches := pattern.FindStringSubmatch(params)
+
+	if matches != nil && len(matches) > 1 {
+		quitMessage = matches[1]
+	}
+
+	quitNotice := fmt.Sprintf(":%s QUIT :%s", c, quitMessage)
+
+	for _, chatroom := range c.chatrooms {
+		chatroom.sendToAll(quitNotice)
+	}
+
+	c.send(fmt.Sprintf("ERROR :Closing Link: %s (%s)", c.address, quitMessage))
+
+	c.disconnect()
 }
 
 /* MISC */
